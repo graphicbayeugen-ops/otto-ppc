@@ -1,21 +1,21 @@
 import { Env } from "./types";
 
-// Fetch a fresh OAuth2 access token (password grant). Cron runs are infrequent,
-// so we simply get a new token each run instead of caching across invocations
-// (Workers are stateless between invocations anyway).
-//
-// IMPORTANT: confirm OTTO_TOKEN_URL, grant type and field names against the
-// current "API Integration for Sellers" docs before going live. This is the
-// one part reconstructed from OTTO's OAuth2 flow rather than the reporting page.
+// Fetch a fresh OAuth2 access token via the client_credentials grant.
+// As of OTTO's API migration, sellers must create a "self-app" in OTTO Partner
+// Connect to obtain client_id and client_secret; OTTO_USERNAME / OTTO_PASSWORD
+// hold those values (variable names kept to avoid re-creating Cloudflare secrets).
 export async function getToken(env: Env): Promise<string> {
+  const credentials = btoa(`${env.OTTO_USERNAME}:${env.OTTO_PASSWORD}`);
   const body = new URLSearchParams({
-    grant_type: "password",
-    username: env.OTTO_USERNAME,
-    password: env.OTTO_PASSWORD,
+    grant_type: "client_credentials",
+    scope: "advertising-services",
   });
   const resp = await fetch(env.OTTO_TOKEN_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Authorization": `Basic ${credentials}`,
+    },
     body,
   });
   if (!resp.ok) {
