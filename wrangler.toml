@@ -17,8 +17,7 @@ crons = [
 # --- Non-secret config ---
 [vars]
 OTTO_BASE_URL = "https://api.otto.market"
-OTTO_TOKEN_URL = "https://api.otto.market/v1/token"
-
+OTTO_TOKEN_URL = "https://api.otto.market/oauth2/token"
 # --- Secrets (NOT here). Set once via:
 #   wrangler secret put OTTO_USERNAME
 #   wrangler secret put OTTO_PASSWORD
