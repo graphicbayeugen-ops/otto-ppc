@@ -6,8 +6,7 @@ compatibility_date = "2026-05-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "otto_ppc"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"   # from: wrangler d1 create otto_ppc
-
+database_id = "a9a90bf2-2b9c-4d31-9258-5877ea93b4a0"   # from: wrangler d1 create otto_ppc
 # --- Cron Triggers (free, no extra cost). 2 of 5 allowed on the free plan. ---
 [triggers]
 crons = [
