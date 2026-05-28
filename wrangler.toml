@@ -25,5 +25,3 @@ OTTO_TOKEN_URL = "https://api.otto.market/v1/token"
 # ---
 
 # Keep us safely inside the free tier; surface accidental runaway work early.
-[limits]
-cpu_ms = 10
