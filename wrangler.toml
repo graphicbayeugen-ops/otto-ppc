@@ -1,0 +1,30 @@
+name = "otto-ppc"
+main = "src/index.ts"
+compatibility_date = "2026-05-01"
+
+# --- D1 (free tier: 500 MB/db, 5 GB total). PPC aggregates stay well under this. ---
+[[d1_databases]]
+binding = "DB"
+database_name = "otto_ppc"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"   # from: wrangler d1 create otto_ppc
+
+# --- Cron Triggers (free, no extra cost). 2 of 5 allowed on the free plan. ---
+[triggers]
+crons = [
+  "0 3 * * *",    # daily 03:00 UTC -> request the 3 reports for "yesterday"
+  "*/5 * * * *",  # every 5 min     -> poll pending reports, download when READY
+]
+
+# --- Non-secret config ---
+[vars]
+OTTO_BASE_URL = "https://api.otto.market"
+OTTO_TOKEN_URL = "https://api.otto.market/v1/token"
+
+# --- Secrets (NOT here). Set once via:
+#   wrangler secret put OTTO_USERNAME
+#   wrangler secret put OTTO_PASSWORD
+# ---
+
+# Keep us safely inside the free tier; surface accidental runaway work early.
+[limits]
+cpu_ms = 10
