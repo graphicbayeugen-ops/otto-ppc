@@ -1,10 +1,10 @@
-import { Env } from "./types";
+import { Env, ReportType } from "./types";
 import { kickoffDaily, pollPending } from "./ingest";
 import { campaignPerformance, productPerformance, keywordPerformance, dailyTrend } from "./metrics";
 import { renderDashboard } from "./ui";
-import { getToken } from "./auth";
+import { getToken, requestReport } from "./otto";
+import { addPendingReport } from "./db";
 
-// Default reporting window if none supplied: last 30 days (excluding today).
 function defaultWindow(): { from: string; to: string } {
   const to = new Date(); to.setUTCDate(to.getUTCDate() - 1);
   const from = new Date(); from.setUTCDate(from.getUTCDate() - 30);
@@ -17,8 +17,25 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
+const REPORT_TYPES: ReportType[] = ["campaign", "product", "keyword"];
+
+async function kickoffRange(env: Env, from: string, to: string) {
+  const token = await getToken(env);
+  const requested: string[] = [];
+  const failed: string[] = [];
+  for (const type of REPORT_TYPES) {
+    try {
+      const id = await requestReport(env, token, type, from, to);
+      await addPendingReport(env, id, type, from, to);
+      requested.push(`${type}:${id}`);
+    } catch (e: any) {
+      failed.push(`${type}:${String(e?.message ?? e)}`);
+    }
+  }
+  return { requested, failed };
+}
+
 export default {
-  // Cron Triggers (free). controller.cron tells us which schedule fired.
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     if (controller.cron === "0 3 * * *") {
       ctx.waitUntil(kickoffDaily(env));
@@ -38,7 +55,6 @@ export default {
           return new Response(renderDashboard(), {
             headers: { "Content-Type": "text/html; charset=utf-8" },
           });
-
         case "/api/campaigns":
           return json(await campaignPerformance(env, win.from, win.to));
         case "/api/products":
@@ -47,8 +63,6 @@ export default {
           return json(await keywordPerformance(env, win.from, win.to, p.get("all") !== "1"));
         case "/api/trend":
           return json(await dailyTrend(env, win.from, win.to));
-
-        // --- admin: tag campaign type & set COGS (POST JSON) ---
         case "/api/campaign-type": {
           if (request.method !== "POST") return json({ error: "POST only" }, 405);
           const b = (await request.json()) as { campaign_id: string; type: string; name?: string };
@@ -67,24 +81,23 @@ export default {
           ).bind(b.sku, b.sell_price, b.contribution_margin).run();
           return json({ ok: true });
         }
-
-        // Manual trigger for first-run/backfill testing.
         case "/api/run-daily":
           await kickoffDaily(env);
           return json({ ok: true, note: "reports requested; poll cron will ingest them" });
+        case "/api/run-range": {
+          const from = p.get("from"); const to = p.get("to");
+          if (!from || !to) return json({ error: "from and to query params required (YYYY-MM-DD)" }, 400);
+          return json(await kickoffRange(env, from, to));
+        }
         case "/api/poll":
           await pollPending(env);
           return json({ ok: true });
-
-        // Debug: inspect pending_reports table without needing D1 console access.
         case "/api/debug-pending": {
           const res = await env.DB.prepare(
             "SELECT report_id, report_type, status, attempts, from_date, to_date, created_at FROM pending_reports ORDER BY created_at DESC LIMIT 20",
           ).all();
           return json(res.results ?? []);
         }
-
-        // Sandbox only: ask OTTO to seed test data so subsequent reports actually generate.
         case "/api/generate-testdata": {
           const token = await getToken(env);
           const tdUrl = `${env.OTTO_BASE_URL.replace(/\/$/, "")}/v1/spa-reporting/testdata`;
@@ -95,7 +108,6 @@ export default {
           const body = await resp.text();
           return json({ status: resp.status, body });
         }
-
         default:
           return json({ error: "not found" }, 404);
       }
