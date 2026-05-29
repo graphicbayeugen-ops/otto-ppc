@@ -16,7 +16,7 @@ export async function requestReport(
     toDate,
     configuration: {
       columns: reportColumns(type),
-      groupBy: spec.dimensions,
+      groupBy: spec.groupBy,
       format: "CSV",
     },
   };
