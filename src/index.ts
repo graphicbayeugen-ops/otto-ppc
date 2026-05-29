@@ -2,6 +2,7 @@ import { Env } from "./types";
 import { kickoffDaily, pollPending } from "./ingest";
 import { campaignPerformance, productPerformance, keywordPerformance, dailyTrend } from "./metrics";
 import { renderDashboard } from "./ui";
+import { getToken } from "./auth";
 
 // Default reporting window if none supplied: last 30 days (excluding today).
 function defaultWindow(): { from: string; to: string } {
@@ -81,6 +82,18 @@ export default {
             "SELECT report_id, report_type, status, attempts, from_date, to_date, created_at FROM pending_reports ORDER BY created_at DESC LIMIT 20",
           ).all();
           return json(res.results ?? []);
+        }
+
+        // Sandbox only: ask OTTO to seed test data so subsequent reports actually generate.
+        case "/api/generate-testdata": {
+          const token = await getToken(env);
+          const tdUrl = `${env.OTTO_BASE_URL.replace(/\/$/, "")}/v1/spa-reporting/testdata`;
+          const resp = await fetch(tdUrl, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const body = await resp.text();
+          return json({ status: resp.status, body });
         }
 
         default:
