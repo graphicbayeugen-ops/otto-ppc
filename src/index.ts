@@ -75,6 +75,14 @@ export default {
           await pollPending(env);
           return json({ ok: true });
 
+        // Debug: inspect pending_reports table without needing D1 console access.
+        case "/api/debug-pending": {
+          const res = await env.DB.prepare(
+            "SELECT report_id, report_type, status, attempts, from_date, to_date, created_at FROM pending_reports ORDER BY created_at DESC LIMIT 20",
+          ).all();
+          return json(res.results ?? []);
+        }
+
         default:
           return json({ error: "not found" }, 404);
       }
